@@ -1,16 +1,11 @@
-Design source: context/runclub_atyrau_garmin_watchface_design.md
+Design reference: first face brief (context/, not committed); this face is the minimal data-focused variant.
 Background: #000000
 Lime primary: #CCFF00
-Lime bright: #D7FF00
-Lime dim: #536600
-Lime dark / contours: #273300
 White primary: #F4F4F4
 White secondary: #BEBEBE
 Graphite: #454545
 Graphite dark: #222222
 
-This design brief supersedes the earlier full-screen lime prototype.
-Logo source: logos/logo-runclub-black.png, preserved; compiled in lime, placed at the top; embedded EST text hidden.
-Skyline source: skyline/lime_skyline.png, 90% screen width, ground line aligned to the bottom; deliberately cropped by the circular display.
+Logo source: logos/logo-runclub-black.png, preserved; compiled in lime (20% screen width) at the top; embedded EST text hidden.
 Fonts: Barlow Condensed ExtraBold, SemiBold, Bold, and Medium (OFL).
 Sleep: clock, date, small logo; black background.
