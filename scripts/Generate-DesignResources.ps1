@@ -1,0 +1,73 @@
+# Deterministic bitmap-font atlases for the minimal face (no contours or icons).
+# Original club media is never modified. Font files retain their OFL license.
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Drawing
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
+using System;
+using System.IO;
+using System.Text;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
+public static class MinimalAssets {
+ public static void FontAtlas(string fontFile,string folder,string name,int em,bool outline,string chars) {
+  using(var fonts=new PrivateFontCollection()) {
+   fonts.AddFontFile(fontFile); var family=fonts.Families[0];
+   using(var all=new GraphicsPath()) {
+    all.AddString(chars,family,0,em,new PointF(0,0),StringFormat.GenericTypographic);
+    var bounds=all.GetBounds(); int pad=Math.Max(2,(int)Math.Ceiling(em/70.0));
+    int h=(int)Math.Ceiling(bounds.Height)+2*pad, maxW=0;
+    foreach(char c in chars) {if(c==' ')continue;using(var path=new GraphicsPath()){path.AddString(c.ToString(),family,0,em,new PointF(),StringFormat.GenericTypographic);maxW=Math.Max(maxW,(int)Math.Ceiling(path.GetBounds().Width));}}
+    int cell=maxW+2*pad+2, cols=16, rows=(chars.Length+cols-1)/cols;
+    using(var bmp=new Bitmap(cell*cols,h*rows)) using(var g=Graphics.FromImage(bmp)) {
+     g.Clear(Color.Transparent);g.SmoothingMode=SmoothingMode.None;g.PixelOffsetMode=PixelOffsetMode.Half;
+     var f=new StringBuilder();
+     f.AppendLine("info face=\"Barlow Condensed\" size="+em+" bold=1 italic=0 charset=\"\" unicode=1 stretchH=100 smooth=0 aa=1 padding=0,0,0,0 spacing=0,0");
+     f.AppendLine("common lineHeight="+h+" base="+(h-pad)+" scaleW="+bmp.Width+" scaleH="+bmp.Height+" pages=1 packed=0");
+     f.AppendLine("page id=0 file=\""+name+".png\"");f.AppendLine("chars count="+chars.Length);
+     for(int i=0;i<chars.Length;i++) {
+      char c=chars[i];int x=(i%cols)*cell,y=(i/cols)*h,advance;
+      using(var path=new GraphicsPath()) {
+       if(c!=' ')path.AddString(c.ToString(),family,0,em,new PointF(),StringFormat.GenericTypographic);
+       var b=path.GetBounds();advance=c==' '?Math.Max(3,em/5):(int)Math.Ceiling(b.Width)+2*pad;
+       if(name.StartsWith("Time") && c!=':')advance=cell-2;
+       if(!name.StartsWith("Time") && c!=' ')advance=(int)Math.Ceiling(b.Width)+Math.Max(1,(int)Math.Round(em/18.0));
+       if(c!=' ') {
+        using(var m=new Matrix()) {m.Translate(x+pad-b.X+(advance-2*pad-b.Width)/2,y+pad-bounds.Y);path.Transform(m);}
+        if(outline) {using(var pen=new Pen(Color.White,Math.Max(1.5f,em/48f))){pen.LineJoin=LineJoin.Round;g.DrawPath(pen,path);}}
+        else g.FillPath(Brushes.White,path);
+       }
+       f.AppendLine("char id="+(int)c+" x="+x+" y="+y+" width="+advance+" height="+h+" xoffset=0 yoffset=0 xadvance="+advance+" page=0 chnl=15");
+      }
+     }
+     Directory.CreateDirectory(folder);bmp.Save(Path.Combine(folder,name+".png"),System.Drawing.Imaging.ImageFormat.Png);
+     File.WriteAllText(Path.Combine(folder,name+".fnt"),f.ToString(),new UTF8Encoding(false));
+    }
+   }
+  }
+ }
+}
+'@
+$root = Split-Path $PSScriptRoot -Parent
+$uiCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .:-/%K'
+$uiCharacters = -join ($uiCharacters.ToCharArray() | Select-Object -Unique)
+# The 970 shares the 965's 454-pixel resources.
+foreach ($target in @(@{Id='fr55';Size=208},@{Id='fr165';Size=390},@{Id='fr255';Size=260},@{Id='fr255sm';Size=218},@{Id='fr265';Size=416},@{Id='fr965';Size=454})) {
+    $folder = Join-Path $root ('resources-' + $target.Id)
+    $fonts = Join-Path $folder 'fonts'
+    New-Item -ItemType Directory -Force -Path $fonts | Out-Null
+    $scale = $target.Size/454.0
+    foreach ($spec in @(
+        @{Name='TimeFilled';Weight='ExtraBold';Em=132;Outline=$false;Chars='0123456789:'},
+        @{Name='SleepTime';Weight='Bold';Em=40;Outline=$false;Chars='0123456789:'},
+        @{Name='SleepDate';Weight='Medium';Em=26;Outline=$false;Chars=$uiCharacters},
+        @{Name='UiSemiBold';Weight='SemiBold';Em=26;Outline=$false;Chars=$uiCharacters},
+        @{Name='UiBold';Weight='Bold';Em=34;Outline=$false;Chars=$uiCharacters},
+        @{Name='UiLabel';Weight='Medium';Em=19;Outline=$false;Chars=$uiCharacters}
+    )) {
+        [MinimalAssets]::FontAtlas((Join-Path $root ('media\fonts\BarlowCondensed-'+$spec.Weight+'.ttf')),$fonts,$spec.Name,[int][Math]::Round($spec.Em*$scale),$spec.Outline,$spec.Chars)
+    }
+    $fontXml = '<fonts>' + ((@('TimeFilled','SleepTime','SleepDate','UiSemiBold','UiBold','UiLabel') | ForEach-Object { '<font id="'+$_+'" filename="'+$_+'.fnt"/>' }) -join '') + '</fonts>'
+    [System.IO.File]::WriteAllText((Join-Path $fonts 'fonts.xml'),$fontXml,(New-Object System.Text.UTF8Encoding $false))
+    Write-Output ('Generated design resources for '+$target.Id)
+}
