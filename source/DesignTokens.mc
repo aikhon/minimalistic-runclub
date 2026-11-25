@@ -1,5 +1,5 @@
-// Run Club Atyrau Minimal: same palette as the first face, fewer ornaments,
-// more data. All positions are fractions of the centered square.
+// Run Club Atyrau Minimal: a dashboard grid in the club palette.
+// All positions are fractions of the centered square.
 module DesignTokens {
     const BACKGROUND = 0x000000;
     const LIME = 0xCCFF00;
@@ -8,20 +8,27 @@ module DesignTokens {
     const GRAPHITE = 0x454545;
     const GRAPHITE_DARK = 0x222222;
 
-    const LOGO_Y = 0.105;
-    const DATE_Y = 0.198;
-    const TIME_Y = 0.360;
-    const DIVIDER_Y = 0.482;
-    const ROW1_VALUE_Y = 0.555;
-    const ROW1_LABEL_Y = 0.612;
-    const ROW2_VALUE_Y = 0.700;
-    const ROW2_LABEL_Y = 0.757;
-    const FOOTER_Y = 0.850;
-    const BATTERY_BAR_Y = 0.895;
+    // Top block: date (left) | logo (right)
+    const TOP_Y = 0.225;
+    const DATE_X = 0.30;
+    const LOGO_X = 0.655;
+    const TOP_DIVIDER_X = 0.44;
+    const LINE_1_Y = 0.325;
 
-    // Outer bezel rings: left = daily step goal, right = weekly intensity minutes.
-    const RING_INSET = 0.022;
-    const RING_SPAN = 100;
+    // Middle block: time (left) | heart, calories, temperature (right)
+    const TIME_Y = 0.485;
+    const TIME_CENTER_X = 0.385;
+    const MID_DIVIDER_X = 0.700;
+    const SIDE_ICON_X = 0.755;
+    const SIDE_VALUE_X = 0.795;
+    const SIDE_ROWS = [0.385, 0.485, 0.585];
+    const LINE_2_Y = 0.645;
+
+    // Bottom row: distance | steps | battery, then intensity footer
+    const BOTTOM_Y = 0.725;
+    const BOTTOM_COLUMNS = [0.25, 0.50, 0.75];
+    const FOOTER_Y = 0.845;
+
     const DEFAULT_STEP_GOAL = 10000;
     const DEFAULT_ACTIVE_WEEK_GOAL = 150;
 }

@@ -1,12 +1,19 @@
 import Toybox.Graphics;
 import Toybox.Lang;
+import Toybox.Math;
 import Toybox.System;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
 import Toybox.WatchUi;
 
-// Layout (top to bottom): logo, date, clock, divider, 3+3 stat grid, footer.
-// Two thin bezel rings frame the face: steps goal (left), weekly intensity (right).
+// Dashboard grid:
+//   date | logo
+//   ----------------------
+//   HH:MM ss | heart / kcal / temp
+//   ----------------------
+//   km | steps | battery
+//   weekly intensity footer
+// Bezel ticks every 30 degrees, lime at 12/3/6/9.
 class MinimalView extends WatchUi.WatchFace {
     private var _sleeping as Boolean = false;
     private var _amoled as Boolean = false;
@@ -17,7 +24,9 @@ class MinimalView extends WatchUi.WatchFace {
     private var _top as Numeric = 0;
     private var _logo as WatchUi.BitmapResource;
     private var _sleepLogo as WatchUi.BitmapResource;
+    private var _icons as Dictionary<Symbol, WatchUi.BitmapResource>;
     private var _time as Graphics.FontType;
+    private var _seconds as Graphics.FontType;
     private var _sleepTime as Graphics.FontType;
     private var _sleepDate as Graphics.FontType;
     private var _ui as Graphics.FontType;
@@ -30,7 +39,15 @@ class MinimalView extends WatchUi.WatchFace {
         _amoled = DisplayProfile.AMOLED;
         _logo = WatchUi.loadResource(Rez.Drawables.ClubLogo) as WatchUi.BitmapResource;
         _sleepLogo = WatchUi.loadResource(Rez.Drawables.SleepLogo) as WatchUi.BitmapResource;
+        _icons = {
+            :heart => WatchUi.loadResource(Rez.Drawables.IconHeart) as WatchUi.BitmapResource,
+            :flame => WatchUi.loadResource(Rez.Drawables.IconFlame) as WatchUi.BitmapResource,
+            :temp => WatchUi.loadResource(Rez.Drawables.IconTemp) as WatchUi.BitmapResource,
+            :run => WatchUi.loadResource(Rez.Drawables.IconRun) as WatchUi.BitmapResource,
+            :steps => WatchUi.loadResource(Rez.Drawables.IconSteps) as WatchUi.BitmapResource
+        };
         _time = WatchUi.loadResource(Rez.Fonts.TimeFilled) as WatchUi.FontResource;
+        _seconds = WatchUi.loadResource(Rez.Fonts.TimeSeconds) as WatchUi.FontResource;
         _sleepTime = WatchUi.loadResource(Rez.Fonts.SleepTime) as WatchUi.FontResource;
         _sleepDate = WatchUi.loadResource(Rez.Fonts.SleepDate) as WatchUi.FontResource;
         _ui = WatchUi.loadResource(Rez.Fonts.UiSemiBold) as WatchUi.FontResource;
@@ -53,132 +70,181 @@ class MinimalView extends WatchUi.WatchFace {
         var now = Time.now();
         var minute = (now.value()/60).toNumber();
         var clock = System.getClockTime();
-        var is24 = System.getDeviceSettings().is24Hour;
+        var settings = System.getDeviceSettings();
+        var is24 = settings.is24Hour;
         var timeText = FaceFormat.time(clock.hour, clock.min, is24);
+        var meridiem = is24 ? "" : (clock.hour < 12 ? "AM" : "PM");
         var date = Gregorian.info(now, Time.FORMAT_SHORT);
         var days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
         var months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         var day = days[(date.day_of_week as Number)-1];
-        var rest = date.day.format("%02d") + " " + months[(date.month as Number)-1];
+        var dayNum = date.day.format("%02d");
+        var month = months[(date.month as Number)-1];
         dc.setColor(DesignTokens.WHITE, DesignTokens.BACKGROUND);
         dc.clear();
         if (_sleeping) {
-            drawSleep(dc, timeText, day+" "+rest, minute);
+            drawSleep(dc, timeText, meridiem, day+" "+dayNum+" "+month, minute);
             return;
         }
         if (_lastMinute != minute) { _data.refresh(); _lastMinute = minute; }
 
-        drawRings(dc);
-        drawLogo(dc, _logo, DesignTokens.LOGO_Y);
-        drawDate(dc, day, rest);
-        drawTime(dc, timeText);
-
-        dc.setPenWidth(1);
-        dc.setColor(DesignTokens.GRAPHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawLine(x(0.30), y(DesignTokens.DIVIDER_Y), x(0.70), y(DesignTokens.DIVIDER_Y));
+        drawTicks(dc);
+        drawGrid(dc);
+        drawDateBlock(dc, day, dayNum, month, (date.year as Number).toString());
+        drawLogo(dc, _logo, DesignTokens.LOGO_X, DesignTokens.TOP_Y);
+        drawTime(dc, timeText, clock.sec.format("%02d"), meridiem, DesignTokens.TIME_CENTER_X);
 
         var d = _data;
-        stat(dc, 0.25, DesignTokens.ROW1_VALUE_Y, DesignTokens.ROW1_LABEL_Y, FaceFormat.steps(d.stepCount), "STEPS");
-        stat(dc, 0.50, DesignTokens.ROW1_VALUE_Y, DesignTokens.ROW1_LABEL_Y, FaceFormat.distance(d.distanceCm), "KM");
-        stat(dc, 0.75, DesignTokens.ROW1_VALUE_Y, DesignTokens.ROW1_LABEL_Y, FaceFormat.heart(d.heartRate), "BPM");
-        stat(dc, 0.29, DesignTokens.ROW2_VALUE_Y, DesignTokens.ROW2_LABEL_Y, FaceFormat.calories(d.calories), "KCAL");
-        stat(dc, 0.50, DesignTokens.ROW2_VALUE_Y, DesignTokens.ROW2_LABEL_Y, FaceFormat.count(d.bodyBattery), "BODY");
-        stat(dc, 0.71, DesignTokens.ROW2_VALUE_Y, DesignTokens.ROW2_LABEL_Y, FaceFormat.count(d.stress), "STRESS");
+        var fahrenheit = settings.temperatureUnits == System.UNIT_STATUTE;
+        var rows = DesignTokens.SIDE_ROWS;
+        sideStat(dc, rows[0], :heart, FaceFormat.heart(d.heartRate), "BPM");
+        sideStat(dc, rows[1], :flame, FaceFormat.calories(d.calories), "KCAL");
+        sideStat(dc, rows[2], :temp, FaceFormat.temperature(d.temperatureC, fahrenheit), fahrenheit ? "F" : "C");
 
-        drawFooter(dc, is24 ? "" : (clock.hour < 12 ? "AM" : "PM"));
+        var cols = DesignTokens.BOTTOM_COLUMNS;
+        bottomStat(dc, cols[0], :run, FaceFormat.distance(d.distanceCm), "KM");
+        bottomStat(dc, cols[1], :steps, FaceFormat.steps(d.stepCount), "STEPS");
+        bottomBattery(dc, cols[2]);
+
+        var footer = "WEEK "+FaceFormat.count(d.activeWeek)+"/"+d.activeWeekGoal.toString()+" MIN";
+        text(dc, footer, x(0.5), y(DesignTokens.FOOTER_Y), _label, DesignTokens.SECONDARY);
     }
 
     private function x(r as Numeric) as Numeric { return _left+_s*r; }
     private function y(r as Numeric) as Numeric { return _top+_s*r; }
 
-    // Hours white, minutes lime: one weight, one accent.
-    private function drawTime(dc as Graphics.Dc, value as String) as Void {
-        var split = value.length()-2;
-        var hours = value.substring(0, split) as String;
-        var minutes = value.substring(split, value.length()) as String;
-        var hw = dc.getTextWidthInPixels(hours, _time);
-        var mw = dc.getTextWidthInPixels(minutes, _time);
-        var start = x(0.5)-(hw+mw)/2;
-        var flags = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
-        dc.setColor(DesignTokens.WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(start, y(DesignTokens.TIME_Y), _time, hours, flags);
-        dc.setColor(DesignTokens.LIME, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(start+hw, y(DesignTokens.TIME_Y), _time, minutes, flags);
-    }
-
-    private function drawDate(dc as Graphics.Dc, day as String, rest as String) as Void {
-        var a = day+" ";
-        var aw = dc.getTextWidthInPixels(a, _ui);
-        var start = x(0.5)-(aw+dc.getTextWidthInPixels(rest, _ui))/2;
-        var flags = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
-        dc.setColor(DesignTokens.LIME, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(start, y(DesignTokens.DATE_Y), _ui, a, flags);
-        dc.setColor(DesignTokens.WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(start+aw, y(DesignTokens.DATE_Y), _ui, rest, flags);
-    }
-
-    private function stat(dc as Graphics.Dc, cx as Float, valueY as Float, labelY as Float, value as String, label as String) as Void {
-        var font = _bold;
-        if (dc.getTextWidthInPixels(value, font) > _s*0.17) { font = _ui; }
-        text(dc, value, x(cx), y(valueY), font, DesignTokens.WHITE);
-        text(dc, label, x(cx), y(labelY), _label, DesignTokens.SECONDARY);
-    }
-
-    // Battery bar + percent, weekly intensity minutes, and AM/PM in 12-hour mode.
-    private function drawFooter(dc as Graphics.Dc, meridiem as String) as Void {
-        var d = _data;
-        var week = FaceFormat.count(d.activeWeek);
-        var footer = week+"/"+d.activeWeekGoal.toString()+" MIN";
-        if (!meridiem.equals("")) { footer = footer+"  "+meridiem; }
-        text(dc, footer, x(0.5), y(DesignTokens.FOOTER_Y), _label, DesignTokens.SECONDARY);
-
-        var w = _s*0.16;
-        var h = (_s*0.016).toNumber();
-        if (h < 3) { h = 3; }
-        var left = x(0.5)-w/2;
-        var top = y(DesignTokens.BATTERY_BAR_Y)-h/2;
-        dc.setColor(DesignTokens.GRAPHITE_DARK, Graphics.COLOR_TRANSPARENT);
-        dc.fillRectangle(left, top, w, h);
-        var level = d.batteryLevel;
-        if (level != null) {
-            var pct = FaceFormat.clampPercent(level);
-            dc.setColor(pct <= 15 ? DesignTokens.WHITE : DesignTokens.LIME, Graphics.COLOR_TRANSPARENT);
-            dc.fillRectangle(left, top, w*pct/100.0, h);
-        }
-        text(dc, FaceFormat.battery(level), left+w+_s*0.045, y(DesignTokens.BATTERY_BAR_Y), _label, DesignTokens.SECONDARY);
-    }
-
-    // Bezel progress rings fill from the bottom upward.
-    private function drawRings(dc as Graphics.Dc) as Void {
-        var d = _data;
-        var r = _s*(0.5-DesignTokens.RING_INSET);
+    private function drawTicks(dc as Graphics.Dc) as Void {
         var cx = x(0.5);
         var cy = y(0.5);
-        var stroke = (6*_s/454.0).toNumber();
-        if (stroke < 3) { stroke = 3; }
-        var span = DesignTokens.RING_SPAN;
-        var leftStart = 180+span/2;   // lower-left, drawn clockwise upward
-        var rightStart = 360-span/2;  // lower-right, drawn counter-clockwise upward
-        dc.setPenWidth(stroke);
-        dc.setColor(DesignTokens.GRAPHITE_DARK, Graphics.COLOR_TRANSPARENT);
-        dc.drawArc(cx, cy, r, Graphics.ARC_CLOCKWISE, leftStart, leftStart-span);
-        dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, rightStart, (rightStart+span)%360);
-        var steps = FaceFormat.progress(d.stepCount, d.stepGoal);
-        var week = FaceFormat.progress(d.activeWeek, d.activeWeekGoal);
-        dc.setColor(DesignTokens.LIME, Graphics.COLOR_TRANSPARENT);
-        if (steps > 0.01) {
-            dc.drawArc(cx, cy, r, Graphics.ARC_CLOCKWISE, leftStart, (leftStart-span*steps).toNumber());
-        }
-        if (week > 0.01) {
-            dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, rightStart, (rightStart+span*week).toNumber()%360);
+        var outer = _s*0.495;
+        var pen = (3*_s/454.0).toNumber();
+        if (pen < 2) { pen = 2; }
+        for (var i = 0; i < 12; i++) {
+            var cardinal = i % 3 == 0;
+            var inner = outer-_s*(cardinal ? 0.045 : 0.025);
+            var a = Math.toRadians(i*30);
+            var sn = Math.sin(a);
+            var cs = Math.cos(a);
+            dc.setPenWidth(cardinal ? pen+1 : pen);
+            dc.setColor(cardinal ? DesignTokens.LIME : DesignTokens.GRAPHITE, Graphics.COLOR_TRANSPARENT);
+            dc.drawLine(cx+sn*inner, cy-cs*inner, cx+sn*outer, cy-cs*outer);
         }
         dc.setPenWidth(1);
     }
 
-    private function drawLogo(dc as Graphics.Dc, logo as WatchUi.BitmapResource, centerY as Numeric) as Void {
+    private function drawGrid(dc as Graphics.Dc) as Void {
+        dc.setPenWidth(1);
+        dc.setColor(DesignTokens.GRAPHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawLine(x(0.10), y(DesignTokens.LINE_1_Y), x(0.90), y(DesignTokens.LINE_1_Y));
+        dc.drawLine(x(0.10), y(DesignTokens.LINE_2_Y), x(0.90), y(DesignTokens.LINE_2_Y));
+        dc.drawLine(x(DesignTokens.TOP_DIVIDER_X), y(0.150), x(DesignTokens.TOP_DIVIDER_X), y(0.300));
+        dc.drawLine(x(DesignTokens.MID_DIVIDER_X), y(0.350), x(DesignTokens.MID_DIVIDER_X), y(0.620));
+        var cols = DesignTokens.BOTTOM_COLUMNS;
+        for (var i = 0; i < cols.size()-1; i++) {
+            var dx = x((cols[i]+cols[i+1])/2.0);
+            dc.drawLine(dx, y(0.680), dx, y(0.790));
+        }
+    }
+
+    // SAT / 26 APR / 2026, right-aligned against the top divider.
+    private function drawDateBlock(dc as Graphics.Dc, day as String, dayNum as String, month as String, year as String) as Void {
+        var right = x(DesignTokens.TOP_DIVIDER_X-0.03);
+        var flags = Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER;
+        dc.setColor(DesignTokens.WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(right, y(DesignTokens.TOP_Y-0.058), _ui, day, flags);
+        var monthText = " "+month;
+        var mw = dc.getTextWidthInPixels(monthText, _bold);
+        dc.drawText(right, y(DesignTokens.TOP_Y+0.002), _bold, monthText, flags);
+        dc.setColor(DesignTokens.LIME, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(right-mw, y(DesignTokens.TOP_Y+0.002), _bold, dayNum, flags);
+        dc.setColor(DesignTokens.SECONDARY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(right, y(DesignTokens.TOP_Y+0.058), _label, year, flags);
+    }
+
+    // HH:MM large white; seconds small grey, bottom-aligned; AM/PM above seconds.
+    private function drawTime(dc as Graphics.Dc, hhmm as String, secs as String or Null, meridiem as String, centerX as Numeric) as Void {
+        var tw = dc.getTextWidthInPixels(hhmm, _time);
+        var sw = secs == null ? 0 : dc.getTextWidthInPixels(secs, _seconds);
+        var gap = secs == null ? 0 : _s*0.012;
+        var start = x(centerX)-(tw+gap+sw)/2;
+        var cy = y(DesignTokens.TIME_Y);
+        var bigH = dc.getFontHeight(_time);
+        var flags = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
+        dc.setColor(DesignTokens.WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(start, cy, _time, hhmm, flags);
+        if (secs != null) {
+            var smallH = dc.getFontHeight(_seconds);
+            dc.setColor(DesignTokens.SECONDARY, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(start+tw+gap, cy+(bigH-smallH)/2, _seconds, secs, flags);
+            if (!meridiem.equals("")) {
+                dc.setColor(DesignTokens.LIME, Graphics.COLOR_TRANSPARENT);
+                dc.drawText(start+tw+gap, cy-bigH/2+dc.getFontHeight(_label)/2, _label, meridiem, flags);
+            }
+        } else if (!meridiem.equals("")) {
+            text(dc, meridiem, x(centerX), cy+bigH/2+_s*0.02, _label, DesignTokens.SECONDARY);
+        }
+    }
+
+    // Icon, value, small unit on one line in the right column.
+    private function sideStat(dc as Graphics.Dc, rowY as Float, icon as Symbol, value as String, unit as String) as Void {
+        var cy = y(rowY);
+        var bmp = _icons[icon] as WatchUi.BitmapResource;
+        dc.drawBitmap(x(DesignTokens.SIDE_ICON_X)-bmp.getWidth()/2, cy-bmp.getHeight()/2, bmp);
+        var flags = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
+        var vx = x(DesignTokens.SIDE_VALUE_X);
+        dc.setColor(DesignTokens.WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(vx, cy, _bold, value, flags);
+        var vw = dc.getTextWidthInPixels(value, _bold);
+        var offset = (dc.getFontHeight(_bold)-dc.getFontHeight(_label))/2*0.75;
+        dc.setColor(DesignTokens.SECONDARY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(vx+vw+_s*0.008, cy+offset, _label, unit, flags);
+    }
+
+    // Icon beside the value, label centered under the value.
+    private function bottomStat(dc as Graphics.Dc, cx as Float, icon as Symbol, value as String, label as String) as Void {
+        var bmp = _icons[icon] as WatchUi.BitmapResource;
+        drawBottomCell(dc, cx, bmp.getWidth(), value, label);
+        var start = bottomStart(dc, cx, bmp.getWidth(), value);
+        dc.drawBitmap(start, y(DesignTokens.BOTTOM_Y)-bmp.getHeight()/2, bmp);
+    }
+
+    private function bottomBattery(dc as Graphics.Dc, cx as Float) as Void {
+        var level = _data.batteryLevel;
+        var w = (_s*0.050).toNumber();
+        var h = (_s*0.026).toNumber();
+        var value = FaceFormat.battery(level);
+        drawBottomCell(dc, cx, w+2, value, "BATTERY");
+        var left = bottomStart(dc, cx, w+2, value);
+        var top = y(DesignTokens.BOTTOM_Y)-h/2;
+        dc.setPenWidth(1);
+        dc.setColor(DesignTokens.LIME, Graphics.COLOR_TRANSPARENT);
+        dc.drawRectangle(left, top, w, h);
+        dc.fillRectangle(left+w, top+h*0.3, 2, h*0.4);
+        if (level != null) {
+            var pct = FaceFormat.clampPercent(level);
+            if (pct <= 15) { dc.setColor(DesignTokens.WHITE, Graphics.COLOR_TRANSPARENT); }
+            dc.fillRectangle(left+2, top+2, (w-4)*pct/100.0, h-4);
+        }
+    }
+
+    private function bottomStart(dc as Graphics.Dc, cx as Float, iconW as Number, value as String) as Numeric {
+        var total = iconW+_s*0.018+dc.getTextWidthInPixels(value, _bold);
+        return x(cx)-total/2;
+    }
+
+    private function drawBottomCell(dc as Graphics.Dc, cx as Float, iconW as Number, value as String, label as String) as Void {
+        var start = bottomStart(dc, cx, iconW, value);
+        var vx = start+iconW+_s*0.018;
+        var vw = dc.getTextWidthInPixels(value, _bold);
+        dc.setColor(DesignTokens.WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(vx, y(DesignTokens.BOTTOM_Y), _bold, value, Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        text(dc, label, vx+vw/2, y(DesignTokens.BOTTOM_Y+0.052), _label, DesignTokens.SECONDARY);
+    }
+
+    private function drawLogo(dc as Graphics.Dc, logo as WatchUi.BitmapResource, centerX as Numeric, centerY as Numeric) as Void {
         var w = logo.getWidth();
         var h = logo.getHeight();
-        var left = x(0.5)-w/2;
+        var left = x(centerX)-w/2;
         var top = y(centerY)-h/2;
         dc.drawBitmap(left, top, logo);
         // Hide the embedded EST text, as in the first face.
@@ -186,16 +252,16 @@ class MinimalView extends WatchUi.WatchFace {
         dc.fillRectangle(left+w*899/1440.0, top+h*287/481.0, w*203/1440.0, h*44/481.0);
     }
 
-    private function drawSleep(dc as Graphics.Dc, clock as String, date as String, minute as Number) as Void {
+    private function drawSleep(dc as Graphics.Dc, clock as String, meridiem as String, date as String, minute as Number) as Void {
         if (!_amoled) {
-            text(dc, date, x(0.5), y(DesignTokens.DATE_Y), _ui, DesignTokens.SECONDARY);
-            drawTime(dc, clock);
-            drawLogo(dc, _sleepLogo, DesignTokens.LOGO_Y);
+            drawLogo(dc, _sleepLogo, 0.5, 0.20);
+            text(dc, date, x(0.5), y(0.30), _ui, DesignTokens.SECONDARY);
+            drawTime(dc, clock, null, meridiem, 0.5);
             return;
         }
         // Four non-overlapping bands rotate each minute to rest AMOLED pixels.
         var center = 0.215+(minute%4)*0.19;
-        drawLogo(dc, _sleepLogo, center-0.070);
+        drawLogo(dc, _sleepLogo, 0.5, center-0.070);
         text(dc, clock, x(0.5), y(center-0.005), _sleepTime, DesignTokens.SECONDARY);
         text(dc, date, x(0.5), y(center+0.060), _sleepDate, DesignTokens.SECONDARY);
     }
