@@ -50,6 +50,10 @@ function extendedStats(logger as Test.Logger) as Boolean {
     Test.assertEqual(FaceFormat.count(-1), "--");
     Test.assertEqual(FaceFormat.count(0), "0");
     Test.assertEqual(FaceFormat.count(73), "73");
+    Test.assertEqual(FaceFormat.temperature(null, false), "--");
+    Test.assertEqual(FaceFormat.temperature(14, false), "14°");
+    Test.assertEqual(FaceFormat.temperature(-3.6, false), "-4°");
+    Test.assertEqual(FaceFormat.temperature(20, true), "68°");
     Test.assertEqual(FaceFormat.calories(null), "--");
     Test.assertEqual(FaceFormat.calories(2140), "2140");
     Test.assertEqual(FaceFormat.calories(12400), "12.4K");

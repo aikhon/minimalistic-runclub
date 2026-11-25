@@ -29,6 +29,13 @@ module FaceFormat {
         return (value == null || value < 0) ? "--" : value.toString();
     }
 
+    // Whole degrees with a degree sign, in Celsius or Fahrenheit.
+    function temperature(celsius as Number or Float or Null, fahrenheit as Boolean) as String {
+        if (celsius == null) { return "--"; }
+        var t = fahrenheit ? celsius * 9.0 / 5.0 + 32.0 : celsius.toFloat();
+        return t.format("%.0f") + "°";
+    }
+
     // Calories above 9999 abbreviate like steps.
     function calories(value as Number or Null) as String {
         if (value == null || value < 0) { return "--"; }
