@@ -85,7 +85,7 @@ foreach ($target in @(@{Id='fr55';Size=208},@{Id='fr165';Size=390},@{Id='fr255';
     New-Item -ItemType Directory -Force -Path $fonts,$drawables | Out-Null
     $scale = $target.Size/454.0
     foreach ($spec in @(
-        @{Name='TimeFilled';Weight='ExtraBold';Em=104;Outline=$false;Chars='0123456789:'},
+        @{Name='TimeFilled';Weight='ExtraBold';Em=120;Outline=$false;Chars='0123456789:'},
         @{Name='TimeCompact';Weight='ExtraBold';Em=88;Outline=$false;Chars='0123456789:'},
         @{Name='TimeSeconds';Weight='Bold';Em=44;Outline=$false;Chars='0123456789'},
         @{Name='SleepTime';Weight='Bold';Em=40;Outline=$false;Chars='0123456789:'},

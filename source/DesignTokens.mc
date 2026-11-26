@@ -18,7 +18,7 @@ module DesignTokens {
     // Middle block: time (left) | heart, calories, temperature (right)
     const TIME_Y = 0.485;
     // Time panel spans from past the 9 o'clock tick to the column divider.
-    const TIME_LEFT_X = 0.065;
+    const TIME_LEFT_X = 0.070;
     const TIME_RIGHT_X = 0.675;
     const MID_DIVIDER_X = 0.700;
     const SIDE_ICON_X = 0.755;
