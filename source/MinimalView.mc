@@ -126,15 +126,17 @@ class MinimalView extends WatchUi.WatchFace {
             var sn = Math.sin(a);
             var cs = Math.cos(a);
             dc.setPenWidth(cardinal ? pen+1 : pen);
-            dc.setColor(cardinal ? DesignTokens.LIME : DesignTokens.GRAPHITE, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(cardinal ? DesignTokens.LIME : DisplayProfile.LINE, Graphics.COLOR_TRANSPARENT);
             dc.drawLine(cx+sn*inner, cy-cs*inner, cx+sn*outer, cy-cs*outer);
         }
         dc.setPenWidth(1);
     }
 
     private function drawGrid(dc as Graphics.Dc) as Void {
-        dc.setPenWidth(1);
-        dc.setColor(DesignTokens.GRAPHITE, Graphics.COLOR_TRANSPARENT);
+        var pen = (2*_s/454.0+0.5).toNumber();
+        if (pen < 1) { pen = 1; }
+        dc.setPenWidth(pen);
+        dc.setColor(DisplayProfile.LINE, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(x(0.10), y(DesignTokens.LINE_1_Y), x(0.90), y(DesignTokens.LINE_1_Y));
         dc.drawLine(x(0.10), y(DesignTokens.LINE_2_Y), x(0.90), y(DesignTokens.LINE_2_Y));
         dc.drawLine(x(DesignTokens.TOP_DIVIDER_X), y(0.150), x(DesignTokens.TOP_DIVIDER_X), y(0.300));
@@ -144,6 +146,7 @@ class MinimalView extends WatchUi.WatchFace {
             var dx = x((cols[i]+cols[i+1])/2.0);
             dc.drawLine(dx, y(0.680), dx, y(0.790));
         }
+        dc.setPenWidth(1);
     }
 
     // SAT / 26 APR / 2026, right-aligned against the top divider.
