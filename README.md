@@ -11,7 +11,7 @@ Dashboard grid split by thin graphite lines, inspired by a reference mock-up:
 | Zone | Content |
 | --- | --- |
 | Bezel | Ticks every 30°, lime at 12/3/6/9 |
-| Top | Date block (`WED` / lime `25` + `NOV` / year) beside the white club logo (38% width) |
+| Top | Date block (`WED` / lime `25` + `NOV` / year) beside the white club logo (45% width) |
 | Middle | Large `HH:MM`, grey seconds, lime AM/PM in 12-hour mode |
 | Right column | Heart rate · calories · temperature, with lime icons |
 | Bottom row | Distance · steps · battery |

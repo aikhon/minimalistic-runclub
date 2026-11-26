@@ -9,10 +9,10 @@ module DesignTokens {
     const GRAPHITE_DARK = 0x222222;
 
     // Top block: date (left) | logo (right)
-    const TOP_Y = 0.225;
-    const DATE_X = 0.30;
-    const LOGO_X = 0.660;
-    const TOP_DIVIDER_X = 0.44;
+    const TOP_Y = 0.230;
+    const DATE_X = 0.27;
+    const LOGO_X = 0.620;
+    const TOP_DIVIDER_X = 0.375;
     const LINE_1_Y = 0.325;
 
     // Middle block: time (left) | heart, calories, temperature (right)
