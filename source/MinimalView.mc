@@ -26,6 +26,7 @@ class MinimalView extends WatchUi.WatchFace {
     private var _sleepLogo as WatchUi.BitmapResource;
     private var _icons as Dictionary<Symbol, WatchUi.BitmapResource>;
     private var _time as Graphics.FontType;
+    private var _timeCompact as Graphics.FontType;
     private var _seconds as Graphics.FontType;
     private var _sleepTime as Graphics.FontType;
     private var _sleepDate as Graphics.FontType;
@@ -47,6 +48,7 @@ class MinimalView extends WatchUi.WatchFace {
             :steps => WatchUi.loadResource(Rez.Drawables.IconSteps) as WatchUi.BitmapResource
         };
         _time = WatchUi.loadResource(Rez.Fonts.TimeFilled) as WatchUi.FontResource;
+        _timeCompact = WatchUi.loadResource(Rez.Fonts.TimeCompact) as WatchUi.FontResource;
         _seconds = WatchUi.loadResource(Rez.Fonts.TimeSeconds) as WatchUi.FontResource;
         _sleepTime = WatchUi.loadResource(Rez.Fonts.SleepTime) as WatchUi.FontResource;
         _sleepDate = WatchUi.loadResource(Rez.Fonts.SleepDate) as WatchUi.FontResource;
@@ -92,7 +94,7 @@ class MinimalView extends WatchUi.WatchFace {
         drawGrid(dc);
         drawDateBlock(dc, day, dayNum, month, (date.year as Number).toString());
         drawLogo(dc, _logo, DesignTokens.LOGO_X, DesignTokens.TOP_Y);
-        drawTime(dc, timeText, clock.sec.format("%02d"), meridiem, DesignTokens.TIME_CENTER_X);
+        drawTime(dc, timeText, clock.sec.format("%02d"), meridiem, DesignTokens.TIME_LEFT_X, DesignTokens.TIME_RIGHT_X);
 
         var d = _data;
         var fahrenheit = settings.temperatureUnits == System.UNIT_STATUTE;
@@ -165,16 +167,23 @@ class MinimalView extends WatchUi.WatchFace {
     }
 
     // HH:MM large white; seconds small grey, bottom-aligned; AM/PM above seconds.
-    private function drawTime(dc as Graphics.Dc, hhmm as String, secs as String or Null, meridiem as String, centerX as Numeric) as Void {
-        var tw = dc.getTextWidthInPixels(hhmm, _time);
+    // Centered between leftX and rightX; falls back to a compact font when the
+    // group would cross the panel edges (small screens, wide digits).
+    private function drawTime(dc as Graphics.Dc, hhmm as String, secs as String or Null, meridiem as String, leftX as Float, rightX as Float) as Void {
         var sw = secs == null ? 0 : dc.getTextWidthInPixels(secs, _seconds);
         var gap = secs == null ? 0 : _s*0.012;
-        var start = x(centerX)-(tw+gap+sw)/2;
+        var font = _time;
+        var tw = dc.getTextWidthInPixels(hhmm, font);
+        if (tw+gap+sw > _s*(rightX-leftX)) {
+            font = _timeCompact;
+            tw = dc.getTextWidthInPixels(hhmm, font);
+        }
+        var start = x((leftX+rightX)/2)-(tw+gap+sw)/2;
         var cy = y(DesignTokens.TIME_Y);
-        var bigH = dc.getFontHeight(_time);
+        var bigH = dc.getFontHeight(font);
         var flags = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
         dc.setColor(DesignTokens.WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(start, cy, _time, hhmm, flags);
+        dc.drawText(start, cy, font, hhmm, flags);
         if (secs != null) {
             var smallH = dc.getFontHeight(_seconds);
             dc.setColor(DesignTokens.SECONDARY, Graphics.COLOR_TRANSPARENT);
@@ -184,7 +193,7 @@ class MinimalView extends WatchUi.WatchFace {
                 dc.drawText(start+tw+gap, cy-bigH/2+dc.getFontHeight(_label)/2, _label, meridiem, flags);
             }
         } else if (!meridiem.equals("")) {
-            text(dc, meridiem, x(centerX), cy+bigH/2+_s*0.02, _label, DesignTokens.SECONDARY);
+            text(dc, meridiem, x((leftX+rightX)/2), cy+bigH/2+_s*0.02, _label, DesignTokens.SECONDARY);
         }
     }
 
@@ -259,7 +268,7 @@ class MinimalView extends WatchUi.WatchFace {
         if (!_amoled) {
             drawLogo(dc, _sleepLogo, 0.5, 0.20);
             text(dc, date, x(0.5), y(0.30), _ui, DesignTokens.SECONDARY);
-            drawTime(dc, clock, null, meridiem, 0.5);
+            drawTime(dc, clock, null, meridiem, 0.06, 0.94);
             return;
         }
         // Four non-overlapping bands rotate each minute to rest AMOLED pixels.
