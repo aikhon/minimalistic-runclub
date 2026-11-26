@@ -85,7 +85,8 @@ foreach ($target in @(@{Id='fr55';Size=208},@{Id='fr165';Size=390},@{Id='fr255';
     New-Item -ItemType Directory -Force -Path $fonts,$drawables | Out-Null
     $scale = $target.Size/454.0
     foreach ($spec in @(
-        @{Name='TimeFilled';Weight='ExtraBold';Em=104;Outline=$false;Chars='0123456789:'},
+        @{Name='TimeFilled';Weight='ExtraBold';Em=120;Outline=$false;Chars='0123456789:'},
+        @{Name='TimeCompact';Weight='ExtraBold';Em=88;Outline=$false;Chars='0123456789:'},
         @{Name='TimeSeconds';Weight='Bold';Em=44;Outline=$false;Chars='0123456789'},
         @{Name='SleepTime';Weight='Bold';Em=40;Outline=$false;Chars='0123456789:'},
         @{Name='SleepDate';Weight='Medium';Em=26;Outline=$false;Chars=$uiCharacters},
@@ -95,7 +96,7 @@ foreach ($target in @(@{Id='fr55';Size=208},@{Id='fr165';Size=390},@{Id='fr255';
     )) {
         [MinimalAssets]::FontAtlas((Join-Path $root ('media\fonts\BarlowCondensed-'+$spec.Weight+'.ttf')),$fonts,$spec.Name,[int][Math]::Round($spec.Em*$scale),$spec.Outline,$spec.Chars)
     }
-    $fontXml = '<fonts>' + ((@('TimeFilled','TimeSeconds','SleepTime','SleepDate','UiSemiBold','UiBold','UiLabel') | ForEach-Object { '<font id="'+$_+'" filename="'+$_+'.fnt"/>' }) -join '') + '</fonts>'
+    $fontXml = '<fonts>' + ((@('TimeFilled','TimeCompact','TimeSeconds','SleepTime','SleepDate','UiSemiBold','UiBold','UiLabel') | ForEach-Object { '<font id="'+$_+'" filename="'+$_+'.fnt"/>' }) -join '') + '</fonts>'
     [System.IO.File]::WriteAllText((Join-Path $fonts 'fonts.xml'),$fontXml,(New-Object System.Text.UTF8Encoding $false))
     foreach ($kind in @('heart','flame','temp','run','steps')) {
         [MinimalAssets]::Icon((Join-Path $drawables ('icon-'+$kind+'.png')),[Math]::Max(12,[int][Math]::Round(24*$scale)),$kind)

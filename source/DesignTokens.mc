@@ -9,15 +9,17 @@ module DesignTokens {
     const GRAPHITE_DARK = 0x222222;
 
     // Top block: date (left) | logo (right)
-    const TOP_Y = 0.225;
-    const DATE_X = 0.30;
-    const LOGO_X = 0.655;
-    const TOP_DIVIDER_X = 0.44;
+    const TOP_Y = 0.230;
+    const DATE_X = 0.27;
+    const LOGO_X = 0.620;
+    const TOP_DIVIDER_X = 0.375;
     const LINE_1_Y = 0.325;
 
     // Middle block: time (left) | heart, calories, temperature (right)
     const TIME_Y = 0.485;
-    const TIME_CENTER_X = 0.385;
+    // Time panel spans from past the 9 o'clock tick to the column divider.
+    const TIME_LEFT_X = 0.070;
+    const TIME_RIGHT_X = 0.675;
     const MID_DIVIDER_X = 0.700;
     const SIDE_ICON_X = 0.755;
     const SIDE_VALUE_X = 0.795;
