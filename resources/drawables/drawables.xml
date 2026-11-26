@@ -1,7 +1,7 @@
 <drawables>
     <bitmap id="LauncherIcon" filename="launcher.png"/>
     <bitmap id="ClubLogo" filename="../../media/logos/logo-runclub-black.png"
-        scaleX="30%" scaleY="10.0208%" scaleRelativeTo="screen" dithering="none">
+        scaleX="38%" scaleY="12.6931%" scaleRelativeTo="screen" dithering="none">
         <palette><color>F4F4F4</color></palette>
     </bitmap>
     <bitmap id="SleepLogo" filename="../../media/logos/logo-runclub-black.png"

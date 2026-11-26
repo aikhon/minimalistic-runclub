@@ -11,7 +11,7 @@ module DesignTokens {
     // Top block: date (left) | logo (right)
     const TOP_Y = 0.225;
     const DATE_X = 0.30;
-    const LOGO_X = 0.655;
+    const LOGO_X = 0.660;
     const TOP_DIVIDER_X = 0.44;
     const LINE_1_Y = 0.325;
 
